@@ -1,0 +1,11 @@
+
+define niv
+	x/4i *$pc
+	ni
+end
+
+set architecture i8086
+break *0x7c00
+#file kernel.bin
+target remote localhost:1234
+
