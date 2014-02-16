@@ -1,9 +1,9 @@
 
 #define BOOT_ADDRESS		0x7c00
+#define BOOT_SEGMENT		0x7c0
 #define STACK_ADDRESS		0x7a00
 
 
-#define KERNEL_SECTOR_COUNT	256
 
 	.text
 	.code16
@@ -16,6 +16,11 @@ _start:
 	nop
 
 
+	.org	8
+sector_count:
+	.long	60
+
+	.org	12
 start0:
 	xorw	%cx, %cx
 	movw	%cx, %ss
@@ -26,26 +31,73 @@ start0:
 /* Set up the stack. */
 	movw	$STACK_ADDRESS, %sp
 
-
-	// Drive number is in %dl
+	movl	sector_count,%eax
 	pushw	%dx
-	// Read one sector
-	pushw	$1
-
-	//pushw	$(KERNEL_SECTOR_COUNT-1)
-
-	// 32 bit LBA of 1
+	pushl	$0x7e00
 	pushl	$1
+	pushl	%eax
 
-	//pushw	$0
-	//pushw	$(BOOT_ADDRESS+512)
-	pushw	$0x7e0
-	pushw	$0
-
-	call	read_sector
+	call	read_sectors
+	sub	$12, %sp
 
 	jmp	kernel
 	nop
+
+/*
+   16(%bp): drive number
+   12(%bp): 32 bit address of the destination buffer
+   8(%bp): Starting LBA
+   4(%bp): Number of sectors to read
+ */
+read_sectors:
+	push	%bp
+	mov	%sp, %bp
+	pusha
+	sub	$8, %sp
+
+	xorl	%ecx, %ecx
+1:
+	movl	%ecx, -4(%bp)
+
+	xorw	%dx, %dx
+	movb	16(%bp), %dl
+	pushw	%dx
+	pushw	$1
+
+	// 32 bit LBA 
+	add	8(%bp), %ecx
+	pushl	%ecx
+
+	//pushw	$0
+	//pushw	$(BOOT_ADDRESS+512)
+	movl	12(%bp), %ecx
+	movl	-4(%bp), %edx
+	shll	$9, %edx
+	addl	%edx, %ecx
+
+	movw	%cx, %dx
+	andw	$0x1fff, %dx
+	xorw	%dx, %cx
+	shr	$4, %cx
+
+	pushw	%cx
+	pushw	%dx
+
+	call	read_sector
+	add	$12, %sp
+
+	movl	-4(%bp), %ecx
+
+	addl	$1, %ecx
+	cmpl	4(%bp), %ecx
+	jne	1b
+
+	add	$8, %sp
+	popa
+	pop	%bp
+	ret
+
+
 
 	/*	
 		
@@ -168,27 +220,124 @@ read_error:
 
 	/* The rest of the kernel. */
 kernel:
-	movw	$0xb800, %ax
-	movw	%ax, %ds
+	//movw	$0x0013, %ax
+	//int	$0x10
+#define WIDTH	1024
+#define HEIGHT	768
+#define VESA_MODE		0x118
 
-	mov	$message, %si
-	xor	%di, %di
-	xor	%dx, %dx
-	mov	$0x1e, %dh
+	movw	$0x4f02, %ax
+	movw	$VESA_MODE, %bx
+	int	$0x10
 
+
+
+
+	xorw	%ax, %ax
+	movw	%ax, %es
+	movw	$vesa_structure, %di
+	movw	$0x4f01, %ax
+	movw	$VESA_MODE, %cx
+	int	$0x10
+
+	xorl	%eax, %eax
+	movw	wingran, %ax
+	shll	$10, %eax
+
+	movl	%eax, bank_size
+
+	movl	$WIDTH, %eax
+	movl	$HEIGHT, %ebx
+	shll	$1, %eax
+	mull	%ebx
+
+	movl	bank_size, %ebx
+	divl	%ebx
+	xorl	%ebx, %ebx
+	subl	%edx, %ebx
+	sbbl	%edx, %edx
+	negl	%edx
+	addl	%edx, %eax
+	movl	%eax, bank_count
+
+	xorl	%edi, %edi
+	xorl	%esi, %esi
+
+
+
+	movw	$0xa000, %bx
+	movw	%bx, %es
+
+	xorl	%ecx, %ecx
 1:
-	mov	%cs:(%si), %dl
-	mov	%dx, (%di)
-	add	$2, %di
+	/*movl	%ecx, %eax
+	movl	$1664525, %ebx
+	mull	%ebx
+	addl	$1013904223, %eax
+	movl	%eax, %ecx
+
+	movl	$0x01010101, %ebx
+	mull	%ebx
+	shr	$24, %eax*/
 
 
-	inc	%si
-	test	%dl, %dl
-	jnz	1b
+	addl	$1,%ecx
 
-1:
+	cmp	imgsize, %ecx
+	jnc	5f
+
+	movl	$img, %ebx
+	movl	(%ebx,%ecx,4),%eax
+
+	movl	%eax, %es:(%di)
+
+
+
+	addl	$4, %edi
+	cmp	bank_size, %edi
+	jnc	3f
+
 	jmp	1b
 
-message:
-	.asciz "Hello World!"
+3:
+	subl	bank_size, %edi
+	addl	$1, %esi
+
+	cmp	bank_count, %esi
+	jnc	2f
+4:
+
+	movw	$0x4f05, %ax
+	xorw	%bx, %bx
+	movw	%si, %dx
+	int	$0x10
+
+	jmp	1b
+	
+2:
+	xorl	%esi, %esi
+
+	jmp	4b
+
+
+5:
+	jmp	5b
+
+bank_size:
+	.long 0x10000
+bank_count:
+	.long 3
+vesa_structure:
+	.short 0
+	.byte 0,0
+	//.short 0
+wingran:
+	.short 0
+
+imgsize:
+	//.long 3145728
+
+	.org 512*8
+img:
+	.long 0
 
