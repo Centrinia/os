@@ -6,8 +6,9 @@ end
 
 set architecture i8086
 break *0x7c00
-break *0x7c63
-break *0x7ce9
+#break *0x7c63
+#break *0x7ce9
 #file kernel.bin
+symbol-file kernel.sym
 target remote localhost:1234
 

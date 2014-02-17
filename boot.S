@@ -18,7 +18,10 @@ _start:
 
 	.org	8
 sector_count:
-	.long	60
+	// 6144+4
+	//.long	(640*480/512+2+2)
+	.long	(640*480/512+2+2)
+	//.long	36
 
 	.org	12
 start0:
@@ -75,10 +78,10 @@ read_sectors:
 	shll	$9, %edx
 	addl	%edx, %ecx
 
-	movw	%cx, %dx
-	andw	$0x1fff, %dx
-	xorw	%dx, %cx
-	shr	$4, %cx
+	movl	%ecx, %edx
+	andl	$0x1fff, %edx
+	xorl	%edx, %ecx
+	shrl	$4, %ecx
 
 	pushw	%cx
 	pushw	%dx
@@ -134,14 +137,15 @@ read_sector:
 	and	$0x3ff, %cx
 	and	$0x3f, %ax
 
-	// ax: maximum sector number
+	// ax:sectors per track
 	movw	%ax, -10(%bp)
 
 	// cx: cylinder limit
 	movw	%cx, -8(%bp)
 
 	// dh,dl: number of hard drives and head limit
-	movw	%dx, -6(%bp)
+	addb	$1, %dh
+	movb	%dh, -6(%bp)
 	
 
 	/* sector: lba % sectors_per_track + 1
@@ -171,9 +175,9 @@ read_sector:
 	divw	%bx
 	
 	// head number
-	movw	%ax, -14(%bp)
+	movw	%dx, -14(%bp)
 	// Cylinder number
-	movw	%dx, -16(%bp)
+	movw	%ax, -16(%bp)
 	/* ah: 2
 	   al: number of sectors
 	   ch: cylinder
@@ -183,8 +187,9 @@ read_sector:
 	   es:bx: buffer address
 	*/
 	// Construct the cyllinder,head value in %cx
-	movw	-16(%bp), %cx
-	shlw	$6, %cx
+	movb	-16(%bp), %ch
+	movb	-17(%bp), %cl
+	shlb	$6, %cl
 	movb	-12(%bp), %al
 	andb	$0x3f, %al
 	or	%al, %cl
@@ -222,9 +227,9 @@ read_error:
 kernel:
 	//movw	$0x0013, %ax
 	//int	$0x10
-#define WIDTH	1024
-#define HEIGHT	768
-#define VESA_MODE		0x118
+#define WIDTH	640
+#define HEIGHT	480
+#define VESA_MODE		0x111
 
 	movw	$0x4f02, %ax
 	movw	$VESA_MODE, %bx
@@ -248,7 +253,7 @@ kernel:
 
 	movl	$WIDTH, %eax
 	movl	$HEIGHT, %ebx
-	shll	$1, %eax
+	shll	$2, %eax
 	mull	%ebx
 
 	movl	bank_size, %ebx
@@ -260,40 +265,70 @@ kernel:
 	addl	%edx, %eax
 	movl	%eax, bank_count
 
+	/*movw	$0x4f08, %ax
+	movb	$0, %bl
+	movb	$8, %bh
+	int	$0x10*/
+
+
+	movw	$0x4f08, %ax
+	movb	$1, %bl
+	//movb	$32, %bh
+	int	$0x10
+
+	// Set palette.
+	movw	$0x4f09, %ax
+	movb	$0, %bl
+	movw	$0, %dx
+	movw	%ds, %cx
+	movw	%cx, %es
+	movw	$palette, %di
+	movw	$256, %cx
+	int	$0x10
+
 	xorl	%edi, %edi
 	xorl	%esi, %esi
-
-
 
 	movw	$0xa000, %bx
 	movw	%bx, %es
 
 	xorl	%ecx, %ecx
 1:
-	/*movl	%ecx, %eax
-	movl	$1664525, %ebx
-	mull	%ebx
-	addl	$1013904223, %eax
-	movl	%eax, %ecx
+	movl	$img, %ebx
+	addl	%ecx, %ebx
+	movl	%ebx, %edx
+	andl	$0x1fff, %edx
+	xorl	%edx, %ebx
+	shr	$4, %ebx
+	movw	%bx, %ds
 
-	movl	$0x01010101, %ebx
-	mull	%ebx
-	shr	$24, %eax*/
+	xorl	%eax, %eax
+	movb	(%edx), %al
+	shl	$1, %ax
 
+	movl	$palette, %ebx
+	addl	%eax, %ebx
+
+	movl	%ebx, %edx
+	andl	$0x1fff, %edx
+	xorl	%edx, %ebx
+	shr	$4, %ebx
+	movw	%bx, %ds
+
+
+	movw	(%edx), %ax
+
+
+	xorw	%bx, %bx
+	movw	%bx, %ds
+
+	movw	%ax, %es:(%di)
 
 	addl	$1,%ecx
-
-	cmp	imgsize, %ecx
+	cmpl	imgsize, %ecx
 	jnc	5f
 
-	movl	$img, %ebx
-	movl	(%ebx,%ecx,4),%eax
-
-	movl	%eax, %es:(%di)
-
-
-
-	addl	$4, %edi
+	addl	$2, %edi
 	cmp	bank_size, %edi
 	jnc	3f
 
@@ -327,6 +362,12 @@ bank_size:
 	.long 0x10000
 bank_count:
 	.long 3
+
+
+imgsize:
+	//.long 3145728
+	.long	307200
+
 vesa_structure:
 	.short 0
 	.byte 0,0
@@ -334,10 +375,12 @@ vesa_structure:
 wingran:
 	.short 0
 
-imgsize:
-	//.long 3145728
+	. = vesa_structure + 128
 
-	.org 512*8
+	. = _start + 512*8
+palette:
+
+	. = palette + 512
 img:
 	.long 0
 
