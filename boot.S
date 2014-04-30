@@ -1,3 +1,4 @@
+/* boot.S */
 
 #define BOOT_ADDRESS		0x7c00
 #define BOOT_SEGMENT		0x7c0
@@ -17,7 +18,6 @@
 _start:
 	jmp	start0
 	nop
-
 
 	.org	8
 sector_count:

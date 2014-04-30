@@ -1,3 +1,4 @@
+#!/usr/bin/python
 
 import sys
 from PIL import Image
@@ -5,10 +6,6 @@ import struct
 
 img = Image.open(sys.argv[1])
 dat = list(img.getdata())
-
-#print dir(img)
-#print dir(img.palette)
-#print len(img.palette.getdata()[1])
 
 with open(sys.argv[2],'wb') as out:
 	for i in range(0,len(img.palette.getdata()[1]),3):
@@ -26,5 +23,4 @@ with open(sys.argv[2],'wb') as out:
 
 
 	for pix in dat:
-		#pix = map(lambda x: x-128,list(pix2))
 		out.write(struct.pack('B', pix))

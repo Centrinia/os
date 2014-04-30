@@ -5,7 +5,7 @@ AS = gcc
 AFLAGS = -m32 -g
 
 CC = gcc 
-CFLAGS = -m32 -g -std=c99
+CFLAGS = -m32 -g -std=gnu99
 
 KERNEL = kernel.bin
 OUTIMAGE = os.img
@@ -39,8 +39,9 @@ out.raw: $(IMAGE_FILE)
 
 $(OUTIMAGE): $(KERNEL)
 	#dd if=/dev/zero of=$(OUTIMAGE) bs=512 count=10
-	dd if=/dev/zero of=$(OUTIMAGE) bs=512 count=1008
+	dd if=/dev/zero of=$(OUTIMAGE) bs=512 count=2880
 	dd if=$(KERNEL) of=$(OUTIMAGE) bs=512 seek=0 conv=notrunc
+	#dd if=$(KERNEL) of=$(OUTIMAGE) bs=512 seek=0 
 	#dd if=out.raw of=$(OUTIMAGE) bs=512 seek=8 conv=notrunc
 
 debug: $(OUTIMAGE)
