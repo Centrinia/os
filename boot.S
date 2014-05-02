@@ -26,7 +26,8 @@ sector_count:
 	//.long	(WIDTH*HEIGHT/512+2+8)
 	//.long	36
 
-	.long 80
+	//.long 80
+	.long 1218 // (640*1024-0x7c00)/512
 
 	.org	12
 start0:

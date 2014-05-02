@@ -506,6 +506,23 @@ struct LispValue * fold_binop(binop_func op, std::vector<struct LispValue*>::con
     result->value.number = sum;
     return result;
 }
+#define make_binop(op,name)		\
+int int_##name(int a, int b) {		\
+    return a op b;			\
+}					\
+struct LispValue * name(						\
+  std::vector<struct LispValue*>::const_iterator & it,		\
+  const std::vector<struct LispValue*>::const_iterator & end) {	\
+    return fold_binop(int_##name,it,end);				\
+}
+
+/*make_binop(+,add)
+make_binop(-,sub)
+make_binop(*,mul)
+make_binop(/,div)
+make_binop(%,mod)
+*/
+#if 1
 int int_add(int a, int b) {
     return a+b;
 }
@@ -536,6 +553,8 @@ int int_mod(int a, int b) {
 struct LispValue * mod(std::vector<struct LispValue*>::const_iterator & it, const std::vector<struct LispValue*>::const_iterator & end) {
     return fold_binop(int_mod,it,end);
 }
+#endif
+
 }
 
 function_type lookup_function(const std::string & name) throw () {

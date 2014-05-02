@@ -25,6 +25,7 @@ gdt_end:
 
 
 
+	.globl idt
 	.align 64
 	.short 0
 idt:
@@ -64,6 +65,8 @@ mode_switch:
 	or	$2, %al
 	and	$0xfe, %al
 	out	%al, $0x92
+
+
 
 // Copy over the real mode IDT
 	movl	$idt, %edi

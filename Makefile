@@ -5,12 +5,12 @@ AS = gcc
 AFLAGS = -m32 -g
 
 CC = gcc 
-CFLAGS = -m32 -g -std=gnu99
+CFLAGS = -m32 -g -std=gnu99 -Os
 
 KERNEL = kernel.bin
 OUTIMAGE = os.img
-SOURCES = boot.S gdt.S protected_mode.S isrs.S debug.c
-OBJECTS = boot.o gdt.o protected_mode.o isrs.o debug.o
+SOURCES = boot.S gdt.S protected_mode.S debug.c interrupts.c text_console.c vga.c isrs.S
+OBJECTS = boot.o gdt.o protected_mode.o debug.o interrupts.o text_console.o vga.o isrs.o
 IMAGE_FILE = out.jpg
 
 all: $(OUTIMAGE)
@@ -41,6 +41,7 @@ $(OUTIMAGE): $(KERNEL)
 	#dd if=/dev/zero of=$(OUTIMAGE) bs=512 count=10
 	dd if=/dev/zero of=$(OUTIMAGE) bs=512 count=2880
 	dd if=$(KERNEL) of=$(OUTIMAGE) bs=512 seek=0 conv=notrunc
+
 	#dd if=$(KERNEL) of=$(OUTIMAGE) bs=512 seek=0 
 	#dd if=out.raw of=$(OUTIMAGE) bs=512 seek=8 conv=notrunc
 
