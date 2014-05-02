@@ -20,17 +20,13 @@ protected_mode:
 	movw	$0x18, %di
 	ltr	%di
 
-	cli
 
 	call	populate_interrupts
-
-	sti
 
 	call	main
 
 	//int	$0x08
 	//int	$0xff
-	int $9
 1:
 	jmp	1b
 

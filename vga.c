@@ -10,5 +10,3 @@ set_vga_register(unsigned short port, unsigned char index,
        outb(port+1, value); */
     outportw(port, ((unsigned short) value << 8) | index);
 }
-
-

@@ -41,17 +41,17 @@ void poll_date(struct date *date)
 
 #if 0
     int registerB = rtc_read(CMOS_STATUS_REGISTER_B);
-    if(!(registerB & 0x04)) {
-	    // TODO: Do the BCD conversion.
+    if (!(registerB & 0x04)) {
+	// TODO: Do the BCD conversion.
     }
 #endif
     if (century == 0) {
-      date->year += (CURRENT_YEAR/100)*100;
-       if(date->year < CURRENT_YEAR) {
-	       date->year = CURRENT_YEAR;
-       }
+	date->year += (CURRENT_YEAR / 100) * 100;
+	if (date->year < CURRENT_YEAR) {
+	    date->year = CURRENT_YEAR;
+	}
     } else {
-	    date->year += century * 100;
+	date->year += century * 100;
     }
 }
 
@@ -68,9 +68,8 @@ int seconds_since(const struct date *a)
     result += a->year / 400;
     result += cumulative_month_days[a->month];
 
-    if (a->month > 1
-	&& ((a->year % 4 == 0)
-	    && (a->year % 100 != 0 || a->year % 400 == 0))) {
+    if (a->month > 1 && ((a->year % 4 == 0)
+			 && (a->year % 100 != 0 || a->year % 400 == 0))) {
 	// Add leap day if it is after Feburary on a leap year.
 	result += 1;
     }
@@ -227,6 +226,7 @@ void write_regs(unsigned char *regs)
     (void) inportb(VGA_INSTAT_READ);
     outportb(VGA_AC_INDEX, 0x20);
 }
+
 unsigned int random_seed = 0;
 unsigned int rand()
 {
@@ -269,11 +269,9 @@ void draw_rectangle(int x0, int y0, int x1, int y1, int color)
 	    if (x >= SCREEN_WIDTH) {
 		continue;
 	    }
-	    const int x_index = (x & 0x3) << 1;
 
 	    for (int y = y0; y <= y1; y++) {
 		buffer[(y * SCREEN_WIDTH + x) >> 2] = color;
-
 	    }
 	}
     }
@@ -322,8 +320,6 @@ void set_color(int color, int red, int blue, int green)
 void debug()
 {
 
-
-    volatile unsigned char *buffer = (unsigned char *) 0xa0000;
 
     write_regs(g_320x200x256_modex);
     //for (;;) 

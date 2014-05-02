@@ -17,6 +17,10 @@ static inline void outportw(unsigned short port, unsigned short val)
     asm volatile ("outw %0, %1"::"a" (val), "Nd"(port));
 }
 
+typedef long integer;
+void print_int(integer x);
+void print_hex(integer x);
+void print_string(char *s);
 
 void
 set_vga_register(unsigned short port, unsigned char index,

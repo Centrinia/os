@@ -1,6 +1,7 @@
 /* text_console.c */
 
 #include "util.h"
+#include "interrupts.h"
 
 static void set_frame(int address);
 static void set_cursor(int address);
@@ -60,7 +61,7 @@ void print_character(char c, int attribute)
 	print_newline();
 	return;
     }
-    const int out = c & 0xff | attribute << 8;
+    const int out = (c & 0xff) | (attribute << 8);
     console.buffer[mod_console_size(console.index)] = out;
     console.buffer[mod_console_size(console.index) + console.size] = out;
 
@@ -86,10 +87,9 @@ void print_string(char *s)
 }
 
 
-typedef long integer;
 void print_base(integer x, int radix)
 {
-    const int buffer_size = 2 + sizeof(integer) *8;
+    const int buffer_size = 2 + sizeof(integer) * 8;
     char buffer[buffer_size];
     int start = buffer_size - 1;
     int negative = x < 0;
@@ -100,8 +100,8 @@ void print_base(integer x, int radix)
 	buffer[--start] = '0';
     }
     while (x != 0) {
-	    int d = x%radix;
-	    int c =d + ( d < 10 ? '0' : 'a'-10);
+	int d = x % radix;
+	int c = d + (d < 10 ? '0' : 'a' - 10);
 	buffer[--start] = c;
 	x /= radix;
     }
@@ -111,11 +111,14 @@ void print_base(integer x, int radix)
     print_string(&buffer[start]);
 }
 
-void print_int(integer x) {
-	print_base(x,10);
+void print_int(integer x)
+{
+    print_base(x, 10);
 }
-void print_hex(integer x) {
-	print_base(x,16);
+
+void print_hex(integer x)
+{
+    print_base(x, 16);
 }
 
 
@@ -169,12 +172,14 @@ void set_frame(int address)
 
 
 
-int main() {
+int main()
+{
     initialize_text_console();
     clear_console();
 
     print_string("Hello World!\n");
-    enable_keyboard();
-    enable_rtc();
+    setup_interrupts();
+    //enable_keyboard();
+    //enable_rtc(10);
     //show_interrupts();
 }

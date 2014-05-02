@@ -5,7 +5,7 @@ AS = gcc
 AFLAGS = -m32 -g
 
 CC = gcc 
-CFLAGS = -m32 -g -std=gnu99 -Os
+CFLAGS = -m32 -g -std=gnu99 -Os -Wall -pedantic
 
 KERNEL = kernel.bin
 OUTIMAGE = os.img

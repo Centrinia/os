@@ -18,7 +18,6 @@ isrs:
 	call	*%eax
 
 	addl	$4, %esp
-
 	popa
 	iret
 	. = 1b+56
