@@ -1,10 +1,36 @@
 
 #include "util.h"
 
+#define PIC_END_OF_INTERRUPT	0x20
+#define CODE_SEGMENT		0x08
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
+#define PIC_MASTER_OFFSET	0x68
+#define PIC_SLAVE_OFFSET	(PIC_MASTER_OFFSET+8)
+
+#define PIC_MASTER_ISR(num)	((num)+PIC_MASTER_OFFSET)
+#define PIC_SLAVE_ISR(num)	((num)+PIC_SLAVE_OFFSET-8)
+
+#define PIC_MASTER_COMMAND	0x20
+#define PIC_SLAVE_COMMAND	0xa0
+#define PIC_MASTER_DATA		(PIC_MASTER_COMMAND + 1)
+#define PIC_SLAVE_DATA		(PIC_SLAVE_COMMAND + 1)
+#define PIC_ICW1_ICW4		(1 << 0)
+#define PIC_ICW1_INIT		(1 << 4)
+
+#define PIC_ICW4_8086		(1 << 0)
+
+
+#define IRQ_TIMER		0
+#define IRQ_KEYBOARD		1
+#define IRQ_SERIAL_PORT_2	3
+#define IRQ_SERIAL_PORT_1	4
+#define IRQ_RTC			8
+#define IRQ_MOUSE		12
+
+
+int rtc_count = 0;
+int pit_count = 0;
+int pit_last = 0;
 
 struct interrupt_descriptor {
     uint32_t offset_0:16;	// bits 0 to 15 of the offset
@@ -41,7 +67,6 @@ struct isr {
 extern struct isr isrs[];
 extern struct interrupt_descriptor idt[];
 
-
 inline static void set_interrupt_descriptor(struct interrupt_descriptor
 					    *desc, uint32_t offset,
 					    uint16_t selector,
@@ -59,45 +84,27 @@ inline static void set_interrupt_descriptor(struct interrupt_descriptor
 
 }
 
-void disable_nmi()
+static inline void disable_nmi()
 {
     outportb(0x70, inportb(0x70) & 0x7f);
 
 }
 
-void enable_nmi()
+static inline void enable_nmi()
 {
     outportb(0x70, inportb(0x70) | 0x80);
 }
 
-void disable_interrupts()
+static inline void disable_interrupts()
 {
     asm volatile ("cli");
 }
 
-void enable_interrupts()
+static inline void enable_interrupts()
 {
     asm volatile ("sti");
 }
 
-int rtc_count = 0;
-int pit_count = 0;
-int pit_last = 0;
-
-#define PIC_MASTER_OFFSET	0x68
-#define PIC_SLAVE_OFFSET	(PIC_MASTER_OFFSET+8)
-
-#define PIC_MASTER_ISR(num)	((num)+PIC_MASTER_OFFSET)
-#define PIC_SLAVE_ISR(num)	((num)+PIC_SLAVE_OFFSET-8)
-
-#define PIC_MASTER_COMMAND	0x20
-#define PIC_SLAVE_COMMAND	0xa0
-#define PIC_MASTER_DATA		(PIC_MASTER_COMMAND + 1)
-#define PIC_SLAVE_DATA		(PIC_SLAVE_COMMAND + 1)
-#define PIC_ICW1_ICW4		(1 << 0)
-#define PIC_ICW1_INIT		(1 << 4)
-
-#define PIC_ICW4_8086		(1 << 0)
 
 static inline void io_wait()
 {
@@ -105,7 +112,7 @@ static inline void io_wait()
     outportb(0x80, 0);
 }
 
-
+/* Set the IRQ mask bit. */
 void set_irq_mask(int irq, int x)
 {
     int port, index;
@@ -130,6 +137,7 @@ void set_irq_mask(int irq, int x)
     enable_interrupts();
 }
 
+/* Initialize the PIC and disable all requests. */
 void initialize_pic()
 {
     disable_interrupts();
@@ -181,20 +189,18 @@ void remap_pic(int master_offset, int slave_offset)
 void handle_irq(int irq)
 {
     switch (irq) {
-    case 0:
+    case IRQ_TIMER:
 	/* system timer */
 	{
 	    pit_count++;
-#if 0
-	    if ((pit_count & 0xff) == 0) {
-		print_string("PIT: ");
-		print_int(pit_count);
-		print_string("\n");
+#if 1
+	    if ((pit_count & 0x3ff) == 0) {
+		    update();
 	    }
 #endif
 	}
 	break;
-    case 1:
+    case IRQ_KEYBOARD:
 	/* keyboard */
 	{
 	    /* Get the scan code. */
@@ -206,6 +212,7 @@ void handle_irq(int irq)
 	    outportb(0x61, c | 0x80);
 	    outportb(0x61, c);
 
+#if 0
 	    if ((k & 0x80) != 0) {
 		print_string("key: ");
 		print_int(k & 0x7f);
@@ -213,12 +220,12 @@ void handle_irq(int irq)
 		print_int((k & 0x80) == 0);
 		print_string("\n");
 	    }
+#endif
 
 	}
 	break;
 
-
-    case 8:
+    case IRQ_RTC:
 	/* real time clock */
 	{
 	    /* Read RTC register C. */
@@ -237,7 +244,7 @@ void handle_irq(int irq)
 	    print_string("\n");
 	}
 	break;
-    case 12:
+    case IRQ_MOUSE:
 	/* PS/2 mouse */
 	{
 	    print_string("mouse\n");
@@ -247,33 +254,34 @@ void handle_irq(int irq)
 
 }
 
+
 void isr_handler(uint32_t num)
 {
-    if ((num & -8) == PIC_MASTER_OFFSET) {
-	handle_irq(num - PIC_MASTER_OFFSET);
-	/* end of interrupt */
-	outportb(0x20, 0x20);
-	return;
-    } else if ((num & -8) == PIC_SLAVE_OFFSET) {
-	handle_irq(num - PIC_SLAVE_OFFSET + 8);
-
-	/* end of interrupt */
-	outportb(0xa0, 0x20);
-	outportb(0x20, 0x20);
-
-	return;
-    }
-
     switch (num) {
     default:
-	print_string("interrupt ");
+	if ((num & -8) == PIC_MASTER_OFFSET) {
+	    handle_irq(num - PIC_MASTER_OFFSET);
+
+	    /* end of interrupt */
+	    outportb(0x20, 0x20);
+	    break;
+	} else if ((num & -8) == PIC_SLAVE_OFFSET) {
+	    handle_irq(num - PIC_SLAVE_OFFSET + 8);
+
+	    /* end of interrupt */
+	    outportb(PIC_SLAVE_COMMAND, PIC_END_OF_INTERRUPT);
+	    outportb(PIC_MASTER_COMMAND, PIC_END_OF_INTERRUPT);
+	    break;
+	}
+
+	/*print_string("interrupt ");
 	print_int(num);
-	print_string(" was called\n");
-	return;
+	print_string(" was called\n");*/
+
+	break;
     }
 }
 
-#define CODE_SEGMENT 0x08
 void populate_interrupts()
 {
     /* 32 bit interrupt gate */
@@ -296,7 +304,6 @@ void enable_rtc(int rate)
 {
     disable_interrupts();
 
-#if 1
     disable_nmi();
     outportb(0x70, 0x8b);	// select register B, and disable NMI
     int reg_b = inportb(0x71);	// read the current value of register B
@@ -309,11 +316,8 @@ void enable_rtc(int rate)
     outportb(0x71, (reg_a & 0xf0) | (rate & 0x0f));
 
     /* Make IRQ 8 fire. */
-    /*inportb(0xa1);
-       outportb(0xa1, 0); */
     set_irq_mask(8, 0);
     enable_nmi();
-#endif
 
     enable_interrupts();
 }
@@ -357,57 +361,18 @@ void enable_pit(int frequency)
 
 void enable_keyboard()
 {
-    set_irq_mask(1, 0);
+    set_irq_mask(IRQ_KEYBOARD, 0);
 }
-
-void show_interrupts()
-{
-    for (int i = 0; i < 256; i++) {
-#if 0
-	print_string("interrupt ");
-	print_int(i);
-	print_string(" : ");
-	print_hex(idt[i].offset_1);
-	print_string(":");
-	print_hex(idt[i].offset_0);
-	print_string(" ");
-	print_hex(idt[i].selector);
-	print_string(" ");
-	print_hex(idt[i].gate_type);
-	print_string(" ");
-	print_hex(idt[i].storage_segment);
-	print_string(" ");
-	print_hex(idt[i].dpl);
-	print_string(" ");
-	print_hex(idt[i].present);
-#else
-	print_hex((uint32_t) isrs[i].offset);
-	{
-	    unsigned char *foo = (unsigned char *) isrs[i].offset;
-	    for (int i = 0; i < 10; i++) {
-		print_string(" ");
-		print_hex((int) foo[i]);
-	    }
-
-	}
-#endif
-	print_string("\n");
-
-    }
-}
-
 
 void setup_interrupts()
 {
     remap_pic(0x68, 0x70);
     initialize_pic();
 
-    set_irq_mask(1, 0);
     set_irq_mask(2, 0);
-    set_irq_mask(12, 0);
+    //set_irq_mask(12, 0);
 
-    //remap_pic(0x08, 0x70);
-    //enable_keyboard();
-    enable_rtc(15);
+    enable_keyboard();
+    //enable_rtc(15);
     enable_pit(2000);
 }

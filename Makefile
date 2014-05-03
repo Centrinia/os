@@ -9,8 +9,8 @@ CFLAGS = -m32 -g -std=gnu99 -Os -Wall -pedantic
 
 KERNEL = kernel.bin
 OUTIMAGE = os.img
-SOURCES = boot.S gdt.S protected_mode.S debug.c interrupts.c text_console.c vga.c isrs.S
-OBJECTS = boot.o gdt.o protected_mode.o debug.o interrupts.o text_console.o vga.o isrs.o
+SOURCES = boot.S gdt.S protected_mode.S debug.c interrupts.c text_console.c vga.c isrs.S main.c paging.c
+OBJECTS = boot.o gdt.o protected_mode.o debug.o interrupts.o text_console.o vga.o isrs.o main.o paging.o
 IMAGE_FILE = out.jpg
 
 all: $(OUTIMAGE)

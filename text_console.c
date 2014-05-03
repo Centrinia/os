@@ -3,8 +3,8 @@
 #include "util.h"
 #include "interrupts.h"
 
-static void set_frame(int address);
-static void set_cursor(int address);
+void set_frame(int address);
+void set_cursor(int address);
 
 struct text_console {
     int xpos;
@@ -162,24 +162,4 @@ void set_cursor(int address)
     set_vga_register(0x3d4, 0x0e, (address >> 8) & 0xff);
 }
 
-void set_frame(int address)
-{
-    // Address high.
-    set_vga_register(0x3d4, 0x0c, (address >> 8) & 0xff);
-    // Address low.
-    set_vga_register(0x3d4, 0x0d, address & 0xff);
-}
 
-
-
-int main()
-{
-    initialize_text_console();
-    clear_console();
-
-    print_string("Hello World!\n");
-    setup_interrupts();
-    //enable_keyboard();
-    //enable_rtc(10);
-    //show_interrupts();
-}

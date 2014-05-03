@@ -3,7 +3,7 @@
 #define BOOT_ADDRESS		0x7c00
 #define BOOT_SEGMENT		0x7c0
 #define STACK_ADDRESS		0x7a00
-
+#define SECTOR_SIZE		512
 
 #define WIDTH	640
 #define HEIGHT	480
@@ -21,13 +21,7 @@ _start:
 
 	.org	8
 sector_count:
-	// 6144+4
-	//.long	(640*480/512+2+2)
-	//.long	(WIDTH*HEIGHT/512+2+8)
-	//.long	36
-
-	//.long 80
-	.long 1218 // (640*1024-0x7c00)/512
+	.long (640*1024-0x7c00)/512
 
 	.org	12
 start0:
@@ -42,7 +36,7 @@ start0:
 
 	movl	sector_count,%eax
 	pushw	%dx
-	pushl	$0x7e00
+	pushl	$(BOOT_ADDRESS+SECTOR_SIZE)
 	pushl	$1
 	pushl	%eax
 
@@ -123,74 +117,87 @@ read_sectors:
 		6(%bp):	destination segment
 		4(%bp):	destination offset
 		-4(%bp): %es
-		
 	*/
+
 read_sector:
 	push	%bp
 	mov	%sp, %bp
 	pusha
 	sub	$32, %sp
 
+#define cylinder_number		-16(%bp)
+#define head_number		-14(%bp)
+#define sector_number		-12(%bp)
+#define sectors_per_track	-10(%bp)
+#define cylinder_limit		-8(%bp)
+#define head_limit		-6(%bp)
+#define backup_es		-4(%bp)
+#define destination_offset	4(%bp)
+#define destination_segment	6(%bp)
+#define logical_sector		8(%bp)
+#define sector_count		12(%bp)
+#define drive_number		14(%bp)
+
 	movw	%es, %cx
-	movw	%cx, -4(%bp)
+	movw	%cx, backup_es
 
 	xorw	%cx, %cx
 	movw	%cx, %es
 	movw	%cx, %di
 
-
+	/* Read drive parameters. */
 	movb	$0x08, %ah
-	movb	14(%bp), %dl
+	movb	drive_number, %dl
 	int	$0x13
 	jc	read_error
 
 	mov	%cx, %ax
 
-	shr	$6, %cx
-	and	$0x3ff, %cx
+	/* ax:sectors per track */
 	and	$0x3f, %ax
+	movw	%ax, sectors_per_track
 
-	// ax:sectors per track
-	movw	%ax, -10(%bp)
+	/* cx: cylinder limit
+	rorw	$8, %cx
+	shr	$2, %ch
+	and	$0x3ff, %cx
+	movw	%cx, cylinder_limit(%bp) */
 
-	// cx: cylinder limit
-	movw	%cx, -8(%bp)
-
-	// dh,dl: number of hard drives and head limit
+	/* dh,dl: number of hard drives and head limit */
 	addb	$1, %dh
-	movb	%dh, -6(%bp)
-	
+	movb	%dh, head_limit
 
 	/* sector: lba % sectors_per_track + 1
 	   head: lba / sectors_per_track % heads_per_cylinder
 	   cylinder: lba / sectors_per_track / heads_per_cylinder
 	*/
 
+	/* Divide the LBA by the number of sectors per track. */
+	xorl	%ebx, %ebx
+	movb	sectors_per_track, %bl
+	movl	logical_sector, %eax
+	xorl	%edx, %edx
 
+	divl	%ebx
 
-	// Divide the LBA by the number of sectors per track.
-	xorb	%bh, %bh
-	movb	-10(%bp), %bl
-	movw	8(%bp), %ax
-	movw	10(%bp), %dx
+	/* (dx,ax): (lba / sectors_per_track, lba % sectors_per_track) */
 
-	divw	%bx
-	// (dx,ax): (lba / sectors_per_track, lba % sectors_per_track)
-
-	// sector number
+	/* sector number */
 	add	$1, %dx
-	movw	%dx, -12(%bp)
+	movw	%dx, sector_number
 
-	// Divide the track number by the number of heads per cylinder
+	/* Divide the track number by the number of heads per cylinder. */
 	xorb	%bh, %bh
 	xorw	%dx, %dx
-	movb	-6(%bp), %bl
+	movb	head_limit, %bl
 	divw	%bx
 	
 	// head number
-	movw	%dx, -14(%bp)
-	// Cylinder number
-	movw	%ax, -16(%bp)
+	movw	%dx, head_number
+	// cylinder number
+	movw	%ax, cylinder_number
+
+
 	/* ah: 2
 	   al: number of sectors
 	   ch: cylinder
@@ -199,30 +206,37 @@ read_sector:
 	   dl: drive
 	   es:bx: buffer address
 	*/
-	// Construct the cyllinder,head value in %cx
-	movb	-16(%bp), %ch
-	movb	-17(%bp), %cl
+	/* Construct the cylinder,head value in %cx */
+	movw	cylinder_number, %cx
+	rorw	$8, %cx
 	shlb	$6, %cl
-	movb	-12(%bp), %al
+	movb	sector_number, %al
 	andb	$0x3f, %al
 	or	%al, %cl
 
-	movb	14(%bp), %dl
-	movb	-14(%bp), %dh
-	movb	12(%bp), %al
-	movb	$0x02, %ah
-
-	// Do the read.
+	/* drive number */
+	movb	drive_number, %dl
+	/* head number */
+	movb	head_number, %dh
+	/* number of sectors to read */
+	movb	sector_count, %al
+	/* destination address */
 	movw	6(%bp), %bx
 	movw	%bx, %es
 	movw	4(%bp), %bx
 	
+
+	/* Do the read. */
+	movb	$0x02, %ah
 	int	$0x13
 
 	jc	read_error
 
+	jmp	1f
 read_error:
-	movw	-4(%bp), %cx
+
+1:
+	movw	backup_es, %cx
 	movw	%cx, %es
 
 	add	$32, %sp

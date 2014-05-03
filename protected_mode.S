@@ -28,6 +28,7 @@ protected_mode:
 	//int	$0x08
 	//int	$0xff
 1:
+	hlt
 	jmp	1b
 
 	.end

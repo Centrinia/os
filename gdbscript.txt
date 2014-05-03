@@ -18,4 +18,5 @@ break *0x7c00
 #break gdt.S:64
 #break default_interrupt
 
+break enable_paging
 target remote localhost:1234
