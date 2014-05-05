@@ -12,10 +12,10 @@ SECTIONS
     {
         SHORT(0xaa55);
     }
-    . = 0x7E00;
+    . = 0x7e00;
     .text : AT(0x7E00)
     {
-        gdt.o(.text);
+        mode_switch.o(.text);
         protected_mode.o(.text);
         isrs.o(.text);
     }

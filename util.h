@@ -24,10 +24,19 @@ void
 set_vga_register(unsigned short port, unsigned char index,
 		 unsigned char value);
 
-typedef long integer;
-void print_int(integer x);
-void print_hex(integer x);
+void print_int(int x);
+void print_hex(unsigned int x);
 void print_string(char *s);
 
 unsigned int rand();
 void setup_paging();
+
+
+void initialize_text_console();
+void setup_interrupts();
+void update();
+int main();
+
+void cpuid(uint32_t * out, uint32_t index);
+
+

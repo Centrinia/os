@@ -87,15 +87,14 @@ void print_string(char *s)
 }
 
 
-void print_base(integer x, int radix)
-{
-    const int buffer_size = 2 + sizeof(integer) * 8;
-    char buffer[buffer_size];
-    int start = buffer_size - 1;
-    int negative = x < 0;
 
-    buffer[buffer_size - 1] = 0;
-    x = negative ? -x : x;
+int sprint_base(char *buffer, int buffer_size, unsigned int x, int radix)
+{
+    //const int buffer_size = sizeof(unsigned int) * 8;
+    //char buffer[buffer_size];
+    int start = buffer_size - 1;
+
+    buffer[buffer_size - 1] = '\0';
     if (x == 0) {
 	buffer[--start] = '0';
     }
@@ -105,22 +104,57 @@ void print_base(integer x, int radix)
 	buffer[--start] = c;
 	x /= radix;
     }
-    if (negative) {
-	buffer[--start] = '-';
-    }
-    print_string(&buffer[start]);
+    //print_string(&buffer[start]);
+    return buffer_size - start - 1;
 }
 
-void print_int(integer x)
+void print_base_padded(unsigned int x, int radix, int width)
 {
-    print_base(x, 10);
+    const int buffer_size =
+	(sizeof(unsigned int) * 8 <
+	 width ? sizeof(unsigned int) * 8 : width) + 1;
+    char buffer[buffer_size];
+    int digits = sprint_base(buffer, buffer_size, x, radix);
+    while (digits < width) {
+	digits++;
+	buffer[buffer_size - 1 - digits] = '0';
+    }
+
+    print_string(&buffer[buffer_size - 1 - digits]);
 }
 
-void print_hex(integer x)
+void print_base(unsigned int x, int radix)
+{
+    const int buffer_size = sizeof(unsigned int) * 8 + 1;
+    char buffer[buffer_size];
+    int digits = sprint_base(buffer, buffer_size, x, radix);
+    print_string(&buffer[buffer_size - 1 - digits]);
+}
+
+void print_signed_base(int x, int radix)
+{
+    if (x < 0) {
+	print_string("-");
+	print_base(-x, radix);
+    } else {
+	print_base(x, radix);
+    }
+}
+
+void print_int(int x)
+{
+    print_signed_base(x, 10);
+}
+
+void print_hex(unsigned int x)
 {
     print_base(x, 16);
 }
 
+void print_hex_padded(unsigned int x, int width)
+{
+    print_base_padded(x, 16, width);
+}
 
 void initialize_text_console()
 {
@@ -132,6 +166,7 @@ void initialize_text_console()
     console.start = 0;
     console.size = console.width * console.height;
     console.buffer = (unsigned short *) 0xb8000;
+    clear_console();
 }
 
 
@@ -161,5 +196,3 @@ void set_cursor(int address)
     // Address high.
     set_vga_register(0x3d4, 0x0e, (address >> 8) & 0xff);
 }
-
-

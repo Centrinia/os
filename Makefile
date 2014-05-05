@@ -5,12 +5,25 @@ AS = gcc
 AFLAGS = -m32 -g
 
 CC = gcc 
-CFLAGS = -m32 -g -std=gnu99 -Os -Wall -pedantic
+CFLAGS = -m32 -g -std=gnu99 -O0 -Wall -pedantic
+# Enable stack debugging
+CFLAGS += -fno-asynchronous-unwind-tables #-fno-exceptions
 
 KERNEL = kernel.bin
 OUTIMAGE = os.img
-SOURCES = boot.S gdt.S protected_mode.S debug.c interrupts.c text_console.c vga.c isrs.S main.c paging.c
-OBJECTS = boot.o gdt.o protected_mode.o debug.o interrupts.o text_console.o vga.o isrs.o main.o paging.o
+OBJECTS = boot.o
+OBJECTS += mode_switch.o
+OBJECTS += protected_mode.o
+OBJECTS += debug.o
+OBJECTS += interrupts.o
+OBJECTS += text_console.o
+OBJECTS += vga.o
+OBJECTS += isrs.o
+OBJECTS += main.o
+OBJECTS += paging.o
+OBJECTS += util.o
+OBJECTS += e820.o
+
 IMAGE_FILE = out.jpg
 
 all: $(OUTIMAGE)

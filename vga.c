@@ -2,10 +2,10 @@
 
 #include "util.h"
 struct {
-	int start;
-	int size;
-	int width;
-	int height;
+    int start;
+    int size;
+    int width;
+    int height;
     uint8_t *buffer;
     volatile uint8_t *front_buffer;
     volatile uint8_t *back_buffer;
@@ -231,29 +231,29 @@ void draw_trapezoid(int x0, int y00, int y01, int x1, int y10, int y11,
 	}
     }
 #else
-	for (int x = x0; x <= x1; x ++) {
-	    if (x < 0) {
-		continue;
-	    }
-	    if (x >= vga_screen.width) {
-		continue;
-	    }
-	    // y = a*(1-t) + b*t = a + t*(b-a)
-	    int y0 = y00 + ((y10 - y00) * (x - x0)) / (x1 - x0);
-	    int y1 = y01 + ((y11 - y01) * (x - x0)) / (x1 - x0);
-	    if (y0 < 0) {
-		y0 = 0;
-	    }
-	    if (y1 >= vga_screen.height) {
-		y1 = vga_screen.height - 1;
-	    }
-	    int offset = y0 * vga_screen.width + x;
-	    for (int y = y0; y <= y1; y++) {
-		vga_screen.buffer[offset] = color;
-		offset += vga_screen.width;
-	    }
+    for (int x = x0; x <= x1; x++) {
+	if (x < 0) {
+	    continue;
 	}
-   
+	if (x >= vga_screen.width) {
+	    continue;
+	}
+	// y = a*(1-t) + b*t = a + t*(b-a)
+	int y0 = y00 + ((y10 - y00) * (x - x0)) / (x1 - x0);
+	int y1 = y01 + ((y11 - y01) * (x - x0)) / (x1 - x0);
+	if (y0 < 0) {
+	    y0 = 0;
+	}
+	if (y1 >= vga_screen.height) {
+	    y1 = vga_screen.height - 1;
+	}
+	int offset = y0 * vga_screen.width + x;
+	for (int y = y0; y <= y1; y++) {
+	    vga_screen.buffer[offset] = color;
+	    offset += vga_screen.width;
+	}
+    }
+
 
 #endif
 }
@@ -265,12 +265,12 @@ void initialize_modex()
 
     vga_screen.width = 320;
     vga_screen.height = 200;
-	vga_screen.start = 0;
-	vga_screen.size = vga_screen.width*vga_screen.height;
+    vga_screen.start = 0;
+    vga_screen.size = vga_screen.width * vga_screen.height;
 
-	vga_screen.buffer = (uint8_t*)(512*1024-65536);
+    vga_screen.buffer = (uint8_t *) (512 * 1024 - 65536);
     vga_screen.front_buffer = (uint8_t *) 0xa0000;
-    vga_screen.back_buffer = (uint8_t *) (0xa0000+vga_screen.size/4);
+    vga_screen.back_buffer = (uint8_t *) (0xa0000 + vga_screen.size / 4);
 }
 
 void set_color(int color, int red, int blue, int green)
@@ -280,59 +280,63 @@ void set_color(int color, int red, int blue, int green)
     outportb(0x3C9, blue);
     outportb(0x3C9, green);
 }
-void vga_main() {
-	initialize_modex();
+
+void vga_main()
+{
+    initialize_modex();
 
 #if 0
-	for (int i = 1; i < 256; i++) {
-	    unsigned int color = rand();
-	    set_color(i, color & 0x3f, (color >> 8) & 0x3f,
-		      (color >> 16) & 0x3f);
-	}
+    for (int i = 1; i < 256; i++) {
+	unsigned int color = rand();
+	set_color(i, color & 0x3f, (color >> 8) & 0x3f,
+		  (color >> 16) & 0x3f);
+    }
 #else
-	for (int i = 1; i < 252; i++) {
-	    unsigned int color = rand();
-	    set_color(i, color & 0x3f, (color >> 8) & 0x3f,
-		      (color >> 16) & 0x3f);
-	    int x = i>>2;
-	    int y = i&3;
-	    set_color(i, x + (y > 0), x+(y>1),x+(y>2));
-	}
-	for(int i=252;i<256;i++) {
-		set_color(i,63,63,63);
-	}
+    for (int i = 1; i < 252; i++) {
+	unsigned int color = rand();
+	set_color(i, color & 0x3f, (color >> 8) & 0x3f,
+		  (color >> 16) & 0x3f);
+	int x = i >> 2;
+	int y = i & 3;
+	set_color(i, x + (y > 0), x + (y > 1), x + (y > 2));
+    }
+    for (int i = 252; i < 256; i++) {
+	set_color(i, 63, 63, 63);
+    }
 
 #endif
-	clear_screen(0);
+    clear_screen(0);
 
 }
 
-void flip_buffers() {
+void flip_buffers()
+{
 
-    for(int i=0;i<4;i++) {
+    for (int i = 0; i < 4; i++) {
 	set_plane_mask(1 << i);
-	    for(int j=0;j<vga_screen.size/4;j++) {
-	    vga_screen.back_buffer[j] = vga_screen.buffer[j*4+i];
-	   }
+	for (int j = 0; j < vga_screen.size / 4; j++) {
+	    vga_screen.back_buffer[j] = vga_screen.buffer[j * 4 + i];
+	}
     }
 
-	volatile uint8_t * buffer = vga_screen.front_buffer;
-	vga_screen.front_buffer = vga_screen.back_buffer;
-	vga_screen.back_buffer = buffer;
+    volatile uint8_t *buffer = vga_screen.front_buffer;
+    vga_screen.front_buffer = vga_screen.back_buffer;
+    vga_screen.back_buffer = buffer;
 
-	vga_screen.start = vga_screen.size/4-vga_screen.start;
-	set_frame(vga_screen.start);
+    vga_screen.start = vga_screen.size / 4 - vga_screen.start;
+    set_frame(vga_screen.start);
 }
 
 float ifs[][6] = {
-	{0.14,0.01,0,0.51,-0.08,-1.31},
-	{0.43,0.52,-0.45,0.5,1.49,-0.75},
-	{0.45,-0.49,0.47,0.47,-1.62,-0.74},
-	{0.49,0,0,0.51,0.02,1.62}
+    {0.14, 0.01, 0, 0.51, -0.08, -1.31},
+    {0.43, 0.52, -0.45, 0.5, 1.49, -0.75},
+    {0.45, -0.49, 0.47, 0.47, -1.62, -0.74},
+    {0.49, 0, 0, 0.51, 0.02, 1.62}
 
 };
-float leaf[2] = {0,0};
-int buf[320*200];
+float leaf[2] = { 0, 0 };
+
+int buf[320 * 200];
 
 void vga_update()
 {
@@ -373,40 +377,40 @@ void vga_update()
 	draw_trapezoid(x0, y00, y01, x1, y10, y11, color);
     }
 #else
-    for(int i=0;i<10000;i++) {
-	int index = ((rand() * 0x55555555) >> 30) & 3; 
-	float x = leaf[0],y=leaf[1];
-	leaf[0] = ifs[index][0]*x+ifs[index][1] * y + ifs[index][4];
-	leaf[1] = ifs[index][2]*x+ifs[index][3] * y + ifs[index][5];
-	x = leaf[0]/8+0.5;
-	y = -leaf[1]/8+0.5;
-	int sx = x*vga_screen.width;
-	int sy = y*vga_screen.height;
-	if(0 <= sx && sx < vga_screen.width && 0 <= sy && sy < vga_screen.height){
-		//vga_screen.buffer[sy*vga_screen.width+sx] = (rand() * 0x01010101) >> 24;
-		buf[sy*vga_screen.width+sx]++;
+    for (int i = 0; i < 10000; i++) {
+	int index = ((rand() * 0x55555555) >> 30) & 3;
+	float x = leaf[0], y = leaf[1];
+	leaf[0] = ifs[index][0] * x + ifs[index][1] * y + ifs[index][4];
+	leaf[1] = ifs[index][2] * x + ifs[index][3] * y + ifs[index][5];
+	x = leaf[0] / 8 + 0.5;
+	y = -leaf[1] / 8 + 0.5;
+	int sx = x * vga_screen.width;
+	int sy = y * vga_screen.height;
+	if (0 <= sx && sx < vga_screen.width && 0 <= sy
+	    && sy < vga_screen.height) {
+	    //vga_screen.buffer[sy*vga_screen.width+sx] = (rand() * 0x01010101) >> 24;
+	    buf[sy * vga_screen.width + sx]++;
 	}
     }
     int mx = 1;
-    for(int i=0;i<320*200;i++) {
-	    if(mx < buf[i]) {
-		    mx = buf[i];
-	    }
+    for (int i = 0; i < 320 * 200; i++) {
+	if (mx < buf[i]) {
+	    mx = buf[i];
+	}
     }
-    for(int i=0;i<320*200;i++) {
-	    double x = (double)buf[i] / (double)mx;
-	    x = 1.0-x;
-	    x*=x;
-	    x*=x;
-	    x*=x;
-	    x*=x;
-	    x*=x;
-	    x*=x;
-	    x*=x;
-	    x = 1.0-x;
-	    vga_screen.buffer[i] = 254*x;
+    for (int i = 0; i < 320 * 200; i++) {
+	double x = (double) buf[i] / (double) mx;
+	x = 1.0 - x;
+	x *= x;
+	x *= x;
+	x *= x;
+	x *= x;
+	x *= x;
+	x *= x;
+	x *= x;
+	x = 1.0 - x;
+	vga_screen.buffer[i] = 254 * x;
     }
 #endif
-	flip_buffers();
+    flip_buffers();
 }
-

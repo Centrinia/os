@@ -10,16 +10,27 @@
 	/*.extern _start
 	. = _start + 512*/
 kernel:
+/* Get the memory map. */
+	movl	$(512*1024), %eax
+	pushl	%eax
+	call	probe_e820
+	subl	$4, %esp
+
 	jmp mode_switch
 	nop
 
 
+/* The GDT. */
 	.align 64
 	.globl gdt
 gdt:
+/* null */
 .long 0x00000000, 0x00000000
+/* code */
 .long 0x0000ffff, 0x00cf9a00
+/* data */
 .long 0x0000ffff, 0x00cf9200
+/* task */
 .long 0x10000067, 0x00408900
 gdt_end:
 
@@ -91,9 +102,10 @@ mode_switch:
 	// Set the code segment field.
 	movw	$0x08, 2(%edi)
 	movb	$0x0, 4(%edi)
-	// Set the type to be a 286 interrupt gate.
-	//movb	$0x06, 5(%edi)
+	/* Set the type to be a 32 bit interrupt gate. */
 	movb	$0x8e, 5(%edi)
+	/* Disable the interrupt. */
+	//movb	$0xe, 5(%edi)
 
 	addl	$8, %edi
 	addl	$1, %ecx

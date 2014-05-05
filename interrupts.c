@@ -1,5 +1,6 @@
 
 #include "util.h"
+#include "interrupts.h"
 
 #define PIC_END_OF_INTERRUPT	0x20
 #define CODE_SEGMENT		0x08
@@ -32,18 +33,20 @@ int rtc_count = 0;
 int pit_count = 0;
 int pit_last = 0;
 
+/* interrupt descriptor table entry */
 struct interrupt_descriptor {
     uint32_t offset_0:16;	// bits 0 to 15 of the offset
     uint32_t selector:16;	// code segment selector
      uint32_t:8;
 
     /* 0x5: 32 bit task gate;
-       0x6: 16-bit interrupt gate;
-       0x7: 16-bit trap gate
        0xe: 32-bit interrupt gate;
        0xf: 32-bit trap gate
+       0x6: 16-bit interrupt gate;
+       0x7: 16-bit trap gate
      */
-    uint32_t gate_type:4;
+    uint32_t type:3;
+    uint32_t size:1;
 
     /* zero for interrupt gates. */
     uint32_t storage_segment:1;
@@ -55,33 +58,77 @@ struct interrupt_descriptor {
 
     /* bits 16 to 32 of the offset */
     uint32_t offset_1:16;
-};
+} __attribute__ ((packed));
 
 struct isr {
-    uint8_t code[56];
-    uint32_t index;
+    uint8_t code[ISR_SIZE - 3 * 4];
+    /* 4 if there is an error code. */
+    uint32_t error_code_present;
+    uint32_t vector;
     uint32_t offset;
-};
+} __attribute__ ((packed));
 
 
 extern struct isr isrs[];
 extern struct interrupt_descriptor idt[];
 
+enum gate_type {
+    task = 0x05,
+    interrupt = 0x06,
+    trap = 0x07,
+};
+
+enum interrupt_vector {
+    divide_error = 0,
+    overflow = 4,
+    double_fault = 8,
+    invalid_tss = 10,
+    segment_absent = 11,
+    stack_fault = 12,
+    protection_fault = 13,
+    page_fault = 14
+};
+
 inline static void set_interrupt_descriptor(struct interrupt_descriptor
 					    *desc, uint32_t offset,
 					    uint16_t selector,
-					    uint8_t gate_type,
-					    uint8_t storage_segment,
+					    enum gate_type type,
+					    int size,
 					    uint8_t dpl, uint8_t present)
 {
-    desc->offset_0 = offset & 0xffff;
-    desc->offset_1 = (offset >> 16) & 0xffff;
-    desc->selector = selector & 0xffff;
-    desc->gate_type = gate_type & 0xf;
-    desc->storage_segment = storage_segment & 1;
-    desc->dpl = dpl & 0x3;
-    desc->present = present & 1;
+#if 1
+    const struct interrupt_descriptor entry = {
+	.offset_0 = offset & 0xffff,
+	.offset_1 = (offset >> 16) & 0xffff,
+	.selector = selector,
+	.type = type,
+	.size = type != task && size == 32,
+	.storage_segment = 0,
+	.dpl = dpl,
+	.present = 1
+    };
 
+    *desc = entry;
+    /*desc->dpl = dpl;
+    desc->present = 1;
+    desc->storage_segment = 0;
+
+        desc->offset_0 = offset & 0xffff;
+        desc->offset_1 = (offset >> 16) & 0xffff;
+        desc->selector = selector & 0xffff;
+        desc->type = type ;
+	desc->size = (type == task || size != 16);*/
+
+#else
+        desc->offset_0 = offset & 0xffff;
+        desc->offset_1 = (offset >> 16) & 0xffff;
+        desc->selector = selector & 0xffff;
+        desc->type = type ;
+	desc->size = 1;
+        desc->storage_segment = 0;
+        desc->dpl = dpl & 0x3;
+        desc->present = 1;
+#endif
 }
 
 static inline void disable_nmi()
@@ -104,7 +151,6 @@ static inline void enable_interrupts()
 {
     asm volatile ("sti");
 }
-
 
 static inline void io_wait()
 {
@@ -195,24 +241,21 @@ void handle_irq(int irq)
 	    pit_count++;
 #if 1
 	    if ((pit_count & 0x3ff) == 0) {
-		    update();
+		update();
 	    }
 #endif
 	}
 	break;
+
     case IRQ_KEYBOARD:
 	/* keyboard */
 	{
 	    /* Get the scan code. */
+
+
+
+#if 1
 	    int k = inportb(0x60);
-
-
-
-	    int c = inportb(0x61);
-	    outportb(0x61, c | 0x80);
-	    outportb(0x61, c);
-
-#if 0
 	    if ((k & 0x80) != 0) {
 		print_string("key: ");
 		print_int(k & 0x7f);
@@ -221,6 +264,9 @@ void handle_irq(int irq)
 		print_string("\n");
 	    }
 #endif
+	    int c = inportb(0x61);
+	    outportb(0x61, c | 0x80);
+	    outportb(0x61, c);
 
 	}
 	break;
@@ -254,10 +300,28 @@ void handle_irq(int irq)
 
 }
 
-
-void isr_handler(uint32_t num)
+void isr_handler(const enum interrupt_vector num, uint32_t error_code)
 {
     switch (num) {
+    case segment_absent:
+	{
+	    print_string("segment not present\n");
+	}
+	break;
+
+    case protection_fault:
+	{
+	    print_string("general protection fault\n");
+	}
+	break;
+
+    case page_fault:
+	{
+	    print_string("page fault\n");
+	}
+	break;
+
+
     default:
 	if ((num & -8) == PIC_MASTER_OFFSET) {
 	    handle_irq(num - PIC_MASTER_OFFSET);
@@ -274,9 +338,9 @@ void isr_handler(uint32_t num)
 	    break;
 	}
 
-	/*print_string("interrupt ");
+	print_string("interrupt ");
 	print_int(num);
-	print_string(" was called\n");*/
+	print_string(" was called\n");
 
 	break;
     }
@@ -284,21 +348,22 @@ void isr_handler(uint32_t num)
 
 void populate_interrupts()
 {
-    /* 32 bit interrupt gate */
-    const int gate_type = 0xe;
-
     disable_interrupts();
+
     for (int i = 0; i < 256; i++) {
 	uint32_t offset = (uint32_t) & isrs[i];
-	isrs[i].index = i;
+	isrs[i].vector = i;
 	isrs[i].offset = (uint32_t) & isr_handler;
-	set_interrupt_descriptor(&idt[i], offset, CODE_SEGMENT, gate_type,
-				 0, 0, 1);
+	set_interrupt_descriptor(&idt[i], offset, CODE_SEGMENT, interrupt,32,0, 1);
     }
+    const int error_code_interrupts[] = { double_fault, invalid_tss,segment_absent, stack_fault, protection_fault, page_fault };
+
+    for (int i = 0; i < sizeof(error_code_interrupts) / sizeof(int); i++) {
+	isrs[i].error_code_present = 1;
+    }
+
     enable_interrupts();
 }
-
-#define call_interrupt(interrupt_number)	asm volatile("int %0" : : "i" (interrupt_number));
 
 void enable_rtc(int rate)
 {
@@ -374,5 +439,5 @@ void setup_interrupts()
 
     enable_keyboard();
     //enable_rtc(15);
-    enable_pit(2000);
+    //enable_pit(2000);
 }

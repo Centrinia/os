@@ -4,10 +4,10 @@ define niv
 	ni
 end
 
-set architecture i8086
+#set architecture i8086
 symbol-file kernel.sym
 
-break *0x7c00
+#break *0x7c00
 #break *0x7c63
 #break *0x7ce9
 #file kernel.bin
@@ -18,5 +18,28 @@ break *0x7c00
 #break gdt.S:64
 #break default_interrupt
 
-break enable_paging
+
+# breakpoints in the isrs.
+#python for i in range(256): gdb.execute("break *{}".format(0x87c0+i*64))
+
+# 0x87c0
+
+# gpf
+# page fault
+#break *0x8b40
+#break *0x8b58
+
+break *(0x87c0+0x69*64)
+break *(0x87c0+0x69*64+0x18)
+
+set architecture i386
+#break main
+#break enable_paging
+#break probe_e820
+#break e820.S:40
+#break e820.S:59
+#break isr_handler
+
+break populate_interrupts
+
 target remote localhost:1234
