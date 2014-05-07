@@ -6,16 +6,16 @@
 
 void print_string(char *s)
 {
-	for(int i=0;s[i];i++) {
-	  int c = s[i];	
+    for (int i = 0; s[i]; i++) {
+	int c = s[i];
 #if USE_TEXT_TERMINAL
 	const int light_gray = 0x07;
 	show_character(c, light_gray);
 #endif
 #if USE_SERIAL_CONSOLE
 	/*if (c == '\n') {
-	    serial_enqueue(SERIAL_COM1_PORT, '\r');
-	}*/
+	   serial_enqueue(SERIAL_COM1_PORT, '\r');
+	   } */
 	serial_enqueue(SERIAL_COM1_PORT, c);
 #endif
     }

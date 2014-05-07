@@ -94,18 +94,19 @@ void serial_enqueue(int port, uint8_t c)
 
 char last_line[1024];
 int last_line_index = 0;
-void consume_buffer(struct serial_buffer * buffer) {
-	while(buffer->count > 0) {
-		int c = dequeue_buffer(buffer);
+void consume_buffer(struct serial_buffer *buffer)
+{
+    while (buffer->count > 0) {
+	int c = dequeue_buffer(buffer);
 
-			last_line[last_line_index++] = c;
-		if(c == '\n' || c ==  '\r') {
-			last_line[last_line_index] = '\0';
-			//print_string(last_line);
-			last_line[0] = '\0';
-			last_line_index = 0;
-		}
+	last_line[last_line_index++] = c;
+	if (c == '\n' || c == '\r') {
+	    last_line[last_line_index] = '\0';
+	    //print_string(last_line);
+	    last_line[0] = '\0';
+	    last_line_index = 0;
 	}
+    }
 }
 
 
@@ -138,11 +139,11 @@ void enable_serial(int port)
 
 
     /* Enable the port in the PIC. */
-    if(port & 0x100) {
-    outportb(0x21, inportb(0x21) & 0xef);
-	} else {
-    outportb(0x21, inportb(0x21) & 0xf7);
-	}
+    if (port & 0x100) {
+	outportb(0x21, inportb(0x21) & 0xef);
+    } else {
+	outportb(0x21, inportb(0x21) & 0xf7);
+    }
     /* Set up the queues. */
     struct serial_buffer *out_buffer = &serial_out[port_to_index(port)];
     out_buffer->count = 0;
@@ -174,15 +175,14 @@ void handle_serial_interrupt(int port)
     case 0x02:
 	/* data available */
 	{
-		struct serial_buffer * buffer =
-			&serial_in[port_to_index(port)];
+	    struct serial_buffer *buffer = &serial_in[port_to_index(port)];
 
-		//print_string("serial in\n");
-		while(serial_received(port)) {
+	    //print_string("serial in\n");
+	    while (serial_received(port)) {
 		int c = inportb(port);
 		enqueue_buffer(buffer, c);
 		consume_buffer(buffer);
-		}
+	    }
 	}
 	break;
     }
