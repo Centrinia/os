@@ -16,8 +16,8 @@ SECTIONS
     .text : AT(0x7E00)
     {
         mode_switch.o(.text);
-        protected_mode.o(.text);
-        isrs.o(.text);
+        /*protected_mode.o(.text);
+        isrs.o(.text);*/
     }
 
     .data :

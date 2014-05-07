@@ -1,32 +1,7 @@
 
 #include "util.h"
 #include "interrupts.h"
-
-#define PIC_END_OF_INTERRUPT	0x20
-#define CODE_SEGMENT		0x08
-
-#define PIC_MASTER_OFFSET	0x68
-#define PIC_SLAVE_OFFSET	(PIC_MASTER_OFFSET+8)
-
-#define PIC_MASTER_ISR(num)	((num)+PIC_MASTER_OFFSET)
-#define PIC_SLAVE_ISR(num)	((num)+PIC_SLAVE_OFFSET-8)
-
-#define PIC_MASTER_COMMAND	0x20
-#define PIC_SLAVE_COMMAND	0xa0
-#define PIC_MASTER_DATA		(PIC_MASTER_COMMAND + 1)
-#define PIC_SLAVE_DATA		(PIC_SLAVE_COMMAND + 1)
-#define PIC_ICW1_ICW4		(1 << 0)
-#define PIC_ICW1_INIT		(1 << 4)
-
-#define PIC_ICW4_8086		(1 << 0)
-
-
-#define IRQ_TIMER		0
-#define IRQ_KEYBOARD		1
-#define IRQ_SERIAL_PORT_2	3
-#define IRQ_SERIAL_PORT_1	4
-#define IRQ_RTC			8
-#define IRQ_MOUSE		12
+#include "serial.h"
 
 
 int rtc_count = 0;
@@ -110,24 +85,24 @@ inline static void set_interrupt_descriptor(struct interrupt_descriptor
 
     *desc = entry;
     /*desc->dpl = dpl;
-    desc->present = 1;
-    desc->storage_segment = 0;
+       desc->present = 1;
+       desc->storage_segment = 0;
 
-        desc->offset_0 = offset & 0xffff;
-        desc->offset_1 = (offset >> 16) & 0xffff;
-        desc->selector = selector & 0xffff;
-        desc->type = type ;
-	desc->size = (type == task || size != 16);*/
+       desc->offset_0 = offset & 0xffff;
+       desc->offset_1 = (offset >> 16) & 0xffff;
+       desc->selector = selector & 0xffff;
+       desc->type = type ;
+       desc->size = (type == task || size != 16); */
 
 #else
-        desc->offset_0 = offset & 0xffff;
-        desc->offset_1 = (offset >> 16) & 0xffff;
-        desc->selector = selector & 0xffff;
-        desc->type = type ;
-	desc->size = 1;
-        desc->storage_segment = 0;
-        desc->dpl = dpl & 0x3;
-        desc->present = 1;
+    desc->offset_0 = offset & 0xffff;
+    desc->offset_1 = (offset >> 16) & 0xffff;
+    desc->selector = selector & 0xffff;
+    desc->type = type;
+    desc->size = 1;
+    desc->storage_segment = 0;
+    desc->dpl = dpl & 0x3;
+    desc->present = 1;
 #endif
 }
 
@@ -150,12 +125,6 @@ static inline void disable_interrupts()
 static inline void enable_interrupts()
 {
     asm volatile ("sti");
-}
-
-static inline void io_wait()
-{
-    /* Use an used port. */
-    outportb(0x80, 0);
 }
 
 /* Set the IRQ mask bit. */
@@ -296,6 +265,19 @@ void handle_irq(int irq)
 	    print_string("mouse\n");
 	}
 	break;
+
+
+    case IRQ_SERIAL_PORT_1:
+	{
+	    handle_serial_interrupt(SERIAL_COM1_PORT);
+	}
+	break;
+    case IRQ_SERIAL_PORT_2:
+	{
+	    handle_serial_interrupt(SERIAL_COM2_PORT);
+	}
+	break;
+
     }
 
 }
@@ -354,9 +336,13 @@ void populate_interrupts()
 	uint32_t offset = (uint32_t) & isrs[i];
 	isrs[i].vector = i;
 	isrs[i].offset = (uint32_t) & isr_handler;
-	set_interrupt_descriptor(&idt[i], offset, CODE_SEGMENT, interrupt,32,0, 1);
+	set_interrupt_descriptor(&idt[i], offset, CODE_SEGMENT, interrupt,
+				 32, 0, 1);
     }
-    const int error_code_interrupts[] = { double_fault, invalid_tss,segment_absent, stack_fault, protection_fault, page_fault };
+    const int error_code_interrupts[] =
+	{ double_fault, invalid_tss, segment_absent, stack_fault,
+	protection_fault, page_fault
+    };
 
     for (int i = 0; i < sizeof(error_code_interrupts) / sizeof(int); i++) {
 	isrs[i].error_code_present = 1;
@@ -431,7 +417,7 @@ void enable_keyboard()
 
 void setup_interrupts()
 {
-    remap_pic(0x68, 0x70);
+    remap_pic(IRQ_ISR_BASE, IRQ_ISR_BASE + 8);
     initialize_pic();
 
     set_irq_mask(2, 0);

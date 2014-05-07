@@ -5,24 +5,28 @@ AS = gcc
 AFLAGS = -m32 -g
 
 CC = gcc 
-CFLAGS = -m32 -g -std=gnu99 -O0 -Wall -pedantic
+COPTS = -O3
+CFLAGS = -m32 -g -std=gnu99 -Wall -pedantic 
 # Enable stack debugging
 CFLAGS += -fno-asynchronous-unwind-tables #-fno-exceptions
 
 KERNEL = kernel.bin
 OUTIMAGE = os.img
 OBJECTS = boot.o
+OBJECTS += e820.o
 OBJECTS += mode_switch.o
 OBJECTS += protected_mode.o
+OBJECTS += isrs.o
 OBJECTS += debug.o
 OBJECTS += interrupts.o
 OBJECTS += text_console.o
 OBJECTS += vga.o
-OBJECTS += isrs.o
 OBJECTS += main.o
 OBJECTS += paging.o
 OBJECTS += util.o
-OBJECTS += e820.o
+OBJECTS += string.o
+OBJECTS += stdlib.o
+OBJECTS += serial.o
 
 IMAGE_FILE = out.jpg
 
@@ -35,9 +39,16 @@ view:
 	objdump  -m i8086 -b binary -D $(OUTIMAGE)
 
 .c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(COPTS) -c $< -o $@
 .S.o:
 	$(AS) $(AFLAGS) -c $< -o $@
+
+#interrupts.o: interrupts.c
+#paging.o: paging.c
+#util.o: util.c
+#text_console.o: text_console.c
+#string.o: string.c
+#	$(CC) $(CFLAGS) -O3 -c $< -o $@
 
 $(KERNEL): $(OBJECTS)
 	#$(LD) boot.o -o $@ --oformat=binary -Ttext=0x7c00

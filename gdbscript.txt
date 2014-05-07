@@ -4,10 +4,10 @@ define niv
 	ni
 end
 
-#set architecture i8086
+set architecture i8086
 symbol-file kernel.sym
 
-#break *0x7c00
+break *0x7c00
 #break *0x7c63
 #break *0x7ce9
 #file kernel.bin
@@ -29,8 +29,8 @@ symbol-file kernel.sym
 #break *0x8b40
 #break *0x8b58
 
-break *(0x87c0+0x69*64)
-break *(0x87c0+0x69*64+0x18)
+#break *(0x87c0+0x69*64)
+#break *(0x87c0+0x69*64+0x18)
 
 set architecture i386
 #break main
@@ -40,6 +40,8 @@ set architecture i386
 #break e820.S:59
 #break isr_handler
 
-break populate_interrupts
+break *0xdfef
+
+#break populate_interrupts
 
 target remote localhost:1234

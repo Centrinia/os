@@ -1,6 +1,7 @@
 /* main.c */
 
 #include "util.h"
+#include "serial.h"
 
 void update()
 {
@@ -25,15 +26,15 @@ void print_e820()
     for (int i = 0; i < e820_entries; i++) {
 	print_int(i);
 	print_string(" :: ");
-	print_hex_padded(entries[i].base_address[1],8);
+	print_hex_padded(entries[i].base_address[1], 8);
 	print_string(":");
-	print_hex_padded(entries[i].base_address[0],8);
+	print_hex_padded(entries[i].base_address[0], 8);
 	print_string(" ");
 
-#if 0
-	print_hex(entries[i].length[1]);
+#if 1
+	print_hex_padded(entries[i].length[1], 8);
 	print_string(":");
-	print_hex(entries[i].length[0]);
+	print_hex_padded(entries[i].length[0], 8);
 #else
 	print_int(entries[i].length[0]);
 #endif
@@ -55,6 +56,7 @@ int main()
     print_string("Hello World!\n");
     setup_interrupts();
     setup_paging();
+    enable_serial(SERIAL_COM1_PORT);
 
     //vga_main();
     //enable_keyboard();
@@ -65,9 +67,35 @@ int main()
 
     print_e820();
     print_hex_padded(*((uint32_t *) 0xffff0) & 0xffffff, 8);
-	print_string("\n");
+    print_string("\n");
 
+
+
+#if 0
+    for (int i = 0;; i++) {
+	print_int(i);
+	print_string("\n");
+    }
+#endif
+
+#if 0
+    char buffer[1024];
+
+    int index = 0;
+    for (;;) {
+	int c = read_serial(SERIAL_COM1_PORT);
+	if (index == 1023 || c == '\n' || c == '\n' || c == '\0') {
+	    buffer[index - 1] = '\0';
+	    print_string("received: \"");
+	    print_string(buffer);
+	    print_string("\"\n");
+	    index = 0;
+	} else {
+	    buffer[index++] = c;
+	}
+    }
     //asm volatile("int $0x69");
+#endif
 
 #if 0
     uint32_t out[4];
