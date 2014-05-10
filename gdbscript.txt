@@ -1,7 +1,7 @@
 
 define niv
-	x/4i *$pc
 	ni
+	x/4i *$pc
 end
 
 set architecture i8086

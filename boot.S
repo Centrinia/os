@@ -5,10 +5,6 @@
 #define STACK_ADDRESS		0x7a00
 #define SECTOR_SIZE		512
 
-#define WIDTH	640
-#define HEIGHT	480
-#define VESA_MODE		0x111
-
 	.text
 	.code16
 
@@ -21,7 +17,7 @@ _start:
 
 	.org	8
 sector_count:
-	.long (640*1024-0x7c00)/512
+	.long (512*1024-0x7c00)/512
 
 	.org	12
 start0:
@@ -29,7 +25,6 @@ start0:
 	movw	%cx, %ss
 	movw	%cx, %ds
 	movw	%cx, %es
-
 
 /* Set up the stack. */
 	movw	$STACK_ADDRESS, %sp
@@ -244,7 +239,9 @@ read_error:
 	pop	%bp
 	ret
 
-
+	/* Partition table. */
+	.org 0x1be
+	.quad 0,0,0,0
 
 	/*.org 510
 	.byte 0x55, 0xaa*/
