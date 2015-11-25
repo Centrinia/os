@@ -141,15 +141,6 @@ void setup_paging()
 	page_table[i].address = i;
     }
     enable_paging(page_directory);
-
-
-    // TODO: Test page fault.
-    //page_tables[0].present = 1;
-    /*for(int i=0;i<1024;i++) {
-       page_table[1024+i].present = 0;
-       } */
-    //page_table[1024].present = 0;
-
-    page_tables[1].present = 0;
-    //page_tables[1].write = 1;
+    page_tables[0].present = 1;
+    page_tables[1].present = 1;
 }

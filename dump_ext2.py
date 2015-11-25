@@ -214,7 +214,9 @@ def load_directory(data):
 			entry = {
 				'inode': inode,
 				'name': name,
-				'file type': file_type
+				'file type': file_type,
+				'name length': name_len,
+				'record length': rec_len
 				}
 			directory += [entry]
 		buf = buf[rec_len:]
@@ -254,4 +256,5 @@ with open(sys.argv[1],'rb') as ext2image:
 	pp.pprint(block_group['group descriptor'])
 	#pp.pprint(block_group)
 	print(len(block_group['inode table']))
+	pp.pprint(block_group['group descriptor']['bg_inode_table'])
 

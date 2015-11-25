@@ -56,9 +56,12 @@ int main()
     print_string("Hello World!\n");
     setup_interrupts();
     setup_paging();
-    enable_serial(SERIAL_COM1_PORT);
+    //enable_serial(SERIAL_COM1_PORT);
 
-    //vga_main();
+    vga_main();
+    for(;;) {
+	    vga_update();
+    }
     //enable_keyboard();
     //enable_rtc(10);
     //show_interrupts();
@@ -97,11 +100,11 @@ int main()
     //asm volatile("int $0x69");
 #endif
 
-#if 0
+#if 1
     uint32_t out[4];
     cpuid(out, 0x01);
 
-#if 0
+#if 1
     for (int i = 0; i < 4; i++) {
 	print_hex(out[i]);
 	print_string(" ");
@@ -111,8 +114,8 @@ int main()
     print_int((out[3] >> 3) & 1);
     print_string("\n");
 #endif
-    //uint32_t *buf3 = 0x4079d4;
-    uint32_t *buf3 = 0x400004;
+    uint32_t *buf3 = 0x4079d4;
+    //uint32_t *buf3 = 0x400004;
     print_hex(buf3[0]);
     print_string("\n");
     buf3[0]++;

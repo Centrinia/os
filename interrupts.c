@@ -1,3 +1,4 @@
+/* interrupts.c */
 
 #include "util.h"
 #include "interrupts.h"
@@ -106,15 +107,10 @@ inline static void set_interrupt_descriptor(struct interrupt_descriptor
 #endif
 }
 
-static inline void disable_nmi()
+/* Enable NMIs if state is 1, disable NMIs if state is 0. */
+static inline void set_nmi(int state)
 {
-    outportb(0x70, inportb(0x70) & 0x7f);
-
-}
-
-static inline void enable_nmi()
-{
-    outportb(0x70, inportb(0x70) | 0x80);
+    outportb(0x70, (inportb(0x70) & 0x7f) | (state << 7));
 }
 
 static inline void disable_interrupts()
@@ -270,11 +266,13 @@ void handle_irq(int irq)
     case IRQ_SERIAL_PORT_1:
 	{
 	    handle_serial_interrupt(SERIAL_COM1_PORT);
+	    print_string("serial 1\n");
 	}
 	break;
     case IRQ_SERIAL_PORT_2:
 	{
 	    handle_serial_interrupt(SERIAL_COM2_PORT);
+	    print_string("serial 2\n");
 	}
 	break;
 
@@ -355,7 +353,7 @@ void enable_rtc(int rate)
 {
     disable_interrupts();
 
-    disable_nmi();
+    set_nmi(0);
     outportb(0x70, 0x8b);	// select register B, and disable NMI
     int reg_b = inportb(0x71);	// read the current value of register B
     outportb(0x70, 0x8b);	// set the index again (a read will reset the index to register D)
@@ -368,7 +366,7 @@ void enable_rtc(int rate)
 
     /* Make IRQ 8 fire. */
     set_irq_mask(8, 0);
-    enable_nmi();
+    set_nmi(1);
 
     enable_interrupts();
 }
@@ -421,11 +419,9 @@ void setup_interrupts()
     initialize_pic();
 
     set_irq_mask(2, 0);
-    //set_irq_mask(12, 0);
+    set_irq_mask(12, 0);
 
     enable_keyboard();
     //enable_rtc(15);
     //enable_pit(2000);
 }
-
-

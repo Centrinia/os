@@ -41,15 +41,19 @@ _start:
 	movw	$0x60, %cx
 	movw	%cx, %ds
 
-
 	/* Find and boot the first active partition. */
 	movw	$partition_table, %si
 	/* There are four partition table entries to search. */
 	movw	$4, %cx
+	/*
+	   %cx: The number of partitions to search
+	   %si: The start of the partition table
+	 */
+find_partition:
 1:
 	/* Test bit 7 to determine if the partition is active. */
 	testb	$0x80, (%si)
-	jnz	load_pbr
+	jnz	load_active
 
 	/* Advance to the next partition table entry. */
 	addl	$16, %si
@@ -60,6 +64,12 @@ _start:
 halt:
 	hlt
 	jmp	1b
+
+
+load_active:
+	call	load_pbr
+	/* Do the jump. */
+	ljmp	$0x7c0,$0
 
 
 load_pbr:
@@ -76,8 +86,7 @@ load_pbr:
 	/* Do the read. */
 	int	$0x13
 
-	/* Do the jump. */
-	ljmp	$0x7c0,$0
+	ret
 
 
 	/* disk timestamp */
