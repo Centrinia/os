@@ -58,15 +58,16 @@ int main()
     setup_paging();
     //enable_serial(SERIAL_COM1_PORT);
 
+#if 0
     vga_main();
     for(;;) {
 	    vga_update();
     }
+#endif
+
     //enable_keyboard();
     //enable_rtc(10);
     //show_interrupts();
-
-
 
     print_e820();
     print_hex_padded(*((uint32_t *) 0xffff0) & 0xffffff, 8);

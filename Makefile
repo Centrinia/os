@@ -8,7 +8,7 @@ CC = gcc
 COPTS = -O3
 CFLAGS = -m32 -g -std=gnu99 -Wall -pedantic 
 # Enable stack debugging
-CFLAGS += -fno-asynchronous-unwind-tables #-fno-exceptions
+CFLAGS += -fno-asynchronous-unwind-tables -fno-stack-protector #-fno-exceptions
 
 KERNEL = kernel.bin
 OUTIMAGE = os.img
